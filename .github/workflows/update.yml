@@ -1,0 +1,42 @@
+name: Update live playlists
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15分ごと（GitHub の混雑で数分遅れることがあります）
+  workflow_dispatch:          # Actions 画面から手動実行もできる
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-live-playlists
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
+
+      - name: Build playlists
+        run: python scripts/update_playlists.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add docs/*.json
+          if git diff --cached --quiet; then
+            echo "変更なし"
+          else
+            git commit -m "Update live playlists"
+            git push
+          fi
